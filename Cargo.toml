@@ -104,6 +104,3 @@ path = "examples/client_example.rs"
 name = "multi_daemon"
 path = "examples/multi_daemon.rs"
 
-[[bench]]
-name = "performance"
-harness = false
