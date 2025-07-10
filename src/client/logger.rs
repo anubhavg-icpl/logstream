@@ -121,6 +121,16 @@ impl LogClient {
         self.log(LogLevel::Warning, message.as_ref(), HashMap::new()).await
     }
 
+    /// Log a warning message with fields
+    pub async fn warning_with_fields<S: AsRef<str>>(&self, message: S, fields: LogFields) -> Result<()> {
+        self.log(LogLevel::Warning, message.as_ref(), fields).await
+    }
+
+    /// Log an error message with fields
+    pub async fn error_with_fields<S: AsRef<str>>(&self, message: S, fields: LogFields) -> Result<()> {
+        self.log(LogLevel::Error, message.as_ref(), fields).await
+    }
+
     /// Log a notice message
     pub async fn notice<S: AsRef<str>>(&self, message: S) -> Result<()> {
         self.log(LogLevel::Notice, message.as_ref(), HashMap::new()).await
