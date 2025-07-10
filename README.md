@@ -28,7 +28,7 @@ A high-performance centralized logging solution written in Rust, designed to han
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/logstream
+git clone https://github.com/anubhavg-icpl/logstream
 cd logstream
 
 # Build in release mode
@@ -137,15 +137,15 @@ use std::collections::HashMap;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = LogClient::connect("/tmp/logstream.sock", "my-daemon").await?;
-    
+
     // Simple logging
     client.info("Application started").await?;
-    
+
     // Structured logging with fields
     let mut fields = HashMap::new();
     fields.insert("user".to_string(), "admin".to_string());
     fields.insert("action".to_string(), "login".to_string());
-    
+
     client.info_with_fields("User login successful", fields).await?;
     Ok(())
 }
