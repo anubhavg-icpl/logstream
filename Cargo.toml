@@ -2,10 +2,10 @@
 name = "logstream"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Anubhav Gain <anubhavg@infopercept.com>"]
 description = "High-performance centralized logging solution in Rust"
 license = "MIT"
-repository = "https://github.com/yourusername/logstream"
+repository = "https://github.com/anubhavg/logstream"
 keywords = ["logging", "centralized", "systemd", "journald", "performance"]
 categories = ["development-tools::debugging"]
 
@@ -104,4 +104,3 @@ path = "examples/client_example.rs"
 [[example]]
 name = "multi_daemon"
 path = "examples/multi_daemon.rs"
-
