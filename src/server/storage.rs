@@ -2,7 +2,7 @@
 
 use crate::config::ServerConfig;
 use crate::types::LogEntry;
-use crate::{LogStreamError, Result};
+use crate::Result;
 use dashmap::DashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

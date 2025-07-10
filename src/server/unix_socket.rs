@@ -32,7 +32,7 @@ impl UnixSocketServer {
     }
 
     /// Start the Unix socket server
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(mut self) -> Result<()> {
         if Path::new(&self.config.server.socket_path).exists() {
             std::fs::remove_file(&self.config.server.socket_path)?;
         }

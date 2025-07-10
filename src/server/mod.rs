@@ -5,7 +5,7 @@ pub mod rotation;
 pub mod storage;
 
 use crate::config::ServerConfig;
-use crate::{LogStreamError, Result};
+use crate::Result;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
