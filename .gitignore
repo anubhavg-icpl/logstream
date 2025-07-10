@@ -1,1 +1,59 @@
-/target
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+/logs/
+/var/log/logstream/
+
+# Config overrides (local development)
+config/local.toml
+config/*.local.toml
+
+# Test artifacts
+/tmp/
+/temp/
+*.sock
+
+# Benchmark results
+/criterion/
+
+# Documentation build
+/target/doc/
+/target/criterion/
+
+# Coverage reports
+*.profraw
+*.profdata
+/coverage/
+
+# Backup files
+*.bak
+*.backup
+
+# Environment files
+.env
+.env.local
+
+# Python (for any helper scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# System files
+*.pid
+*.lock
