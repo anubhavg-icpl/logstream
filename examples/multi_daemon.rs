@@ -74,11 +74,11 @@ async fn run_daemon(socket_path: String, daemon_name: &str, interval_ms: u64) ->
             }
             7..=8 => {
                 fields.insert("status".to_string(), "warning".to_string());
-                client.warning("Minor issue detected", fields).await?;
+                client.warning_with_fields("Minor issue detected", fields).await?;
             }
             9 => {
                 fields.insert("status".to_string(), "error".to_string());
-                client.error("Error occurred", fields).await?;
+                client.error_with_fields("Error occurred", fields).await?;
             }
             _ => unreachable!(),
         }
