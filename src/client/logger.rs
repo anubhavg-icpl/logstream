@@ -96,6 +96,41 @@ impl LogClient {
         Ok(())
     }
 
+    /// Log an emergency message
+    pub async fn emergency<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Emergency, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log an alert message
+    pub async fn alert<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Alert, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log a critical message
+    pub async fn critical<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Critical, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log an error message
+    pub async fn error<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Error, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log a warning message
+    pub async fn warning<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Warning, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log a notice message
+    pub async fn notice<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Notice, message.as_ref(), HashMap::new()).await
+    }
+
+    /// Log a debug message
+    pub async fn debug<S: AsRef<str>>(&self, message: S) -> Result<()> {
+        self.log(LogLevel::Debug, message.as_ref(), HashMap::new()).await
+    }
+
     /// Close the connection to the server
     pub async fn close(&self) -> Result<()> {
         let mut conn_guard = self.connection.lock().await;
