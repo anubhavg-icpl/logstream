@@ -1,0 +1,20 @@
+# LogStream Client Configuration
+
+# Server socket path to connect to
+socket_path = "/tmp/logstream.sock"
+
+# Client daemon name (used to identify log source)
+daemon_name = "my-application"
+
+# Minimum log level to send to server
+# Options: "Emergency", "Alert", "Critical", "Error", "Warning", "Notice", "Info", "Debug"
+min_level = "Info"
+
+# Connection timeout in seconds
+timeout_seconds = 5
+
+# Enable automatic reconnection on connection failure
+auto_reconnect = true
+
+# Buffer size for outgoing messages (bytes)
+buffer_size = 4096
