@@ -1,0 +1,53 @@
+# LogStream Server Configuration
+
+[server]
+# Unix socket path to bind to
+socket_path = "/tmp/logstream.sock"
+# Maximum concurrent connections
+max_connections = 1000
+# Buffer size for reading data (bytes)
+buffer_size = 8192
+
+[storage]
+# Directory to store log files
+output_directory = "/var/log/logstream"
+# Maximum file size before rotation (bytes) - 100MB default
+max_file_size = 104857600
+
+[storage.rotation]
+# Enable log rotation
+enabled = true
+# Maximum age of log files (hours)
+max_age_hours = 24
+# Number of rotated files to keep
+keep_files = 7
+
+[backends.file]
+# Enable file storage backend
+enabled = true
+# File format: "json", "human", or "syslog"
+format = "json"
+# Enable compression for rotated files
+compression = false
+# Compression algorithm: "gzip" or "lz4"
+compression_algorithm = "gzip"
+
+[backends.journald]
+# Enable journald backend (requires systemd)
+enabled = false
+# Syslog identifier for journald entries
+syslog_identifier = "logstream"
+
+[backends.syslog]
+# Enable syslog backend
+enabled = false
+# Syslog facility
+facility = "LOG_USER"
+
+[metrics]
+# Enable metrics endpoint
+enabled = false
+# Metrics server port
+port = 9090
+# Metrics endpoint path
+path = "/metrics"
