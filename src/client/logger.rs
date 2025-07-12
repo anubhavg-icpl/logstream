@@ -111,6 +111,11 @@ impl LogClient {
         self.log(LogLevel::Critical, message.as_ref(), HashMap::new()).await
     }
 
+    /// Log a critical message with fields
+    pub async fn critical_with_fields<S: AsRef<str>>(&self, message: S, fields: LogFields) -> Result<()> {
+        self.log(LogLevel::Critical, message.as_ref(), fields).await
+    }
+
     /// Log an error message
     pub async fn error<S: AsRef<str>>(&self, message: S) -> Result<()> {
         self.log(LogLevel::Error, message.as_ref(), HashMap::new()).await
@@ -148,5 +153,327 @@ impl LogClient {
             conn.shutdown().await.map_err(LogStreamError::Io)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+    use tokio::net::UnixListener;
+
+    async fn create_test_server(socket_path: &str) -> UnixListener {
+        let _ = std::fs::remove_file(socket_path);
+        UnixListener::bind(socket_path).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_client_config_defaults() {
+        let config = ClientConfig {
+            socket_path: "/tmp/test.sock".to_string(),
+            daemon_name: "test-daemon".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(config.socket_path, "/tmp/test.sock");
+        assert_eq!(config.daemon_name, "test-daemon");
+        assert_eq!(config.timeout_seconds, 5);
+        assert!(config.auto_reconnect);
+        assert_eq!(config.buffer_size, 4096);
+        assert!(config.validate().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_config_validation() {
+        let invalid_config = ClientConfig {
+            socket_path: "".to_string(),
+            daemon_name: "test".to_string(),
+            ..Default::default()
+        };
+        assert!(invalid_config.validate().is_err());
+
+        let invalid_config2 = ClientConfig {
+            socket_path: "/tmp/test.sock".to_string(),
+            daemon_name: "".to_string(),
+            ..Default::default()
+        };
+        assert!(invalid_config2.validate().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_log_client_connection() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut buf = vec![0; 1024];
+                        while let Ok(n) = stream.read(&mut buf).await {
+                            if n == 0 { break; }
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "test-daemon").await;
+        assert!(client.is_ok());
+        
+        let client = client.unwrap();
+        assert_eq!(client.config.daemon_name, "test-daemon");
+        assert!(!client.hostname.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_log_client_connection_timeout() {
+        let socket_path = "/tmp/nonexistent_socket_12345.sock";
+        let config = ClientConfig {
+            socket_path: socket_path.to_string(),
+            daemon_name: "test-daemon".to_string(),
+            timeout_seconds: 1,
+            ..Default::default()
+        };
+
+        let result = LogClient::with_config(config).await;
+        match result {
+            Err(LogStreamError::Connection(_)) => {},
+            _ => panic!("Expected Connection error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_all_log_levels() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test_levels.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        let received_logs = Arc::new(Mutex::new(Vec::new()));
+        let logs_clone = received_logs.clone();
+
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    let logs = logs_clone.clone();
+                    tokio::spawn(async move {
+                        let mut reader = BufReader::new(stream);
+                        let mut line = String::new();
+                        while let Ok(n) = reader.read_line(&mut line).await {
+                            if n == 0 { break; }
+                            let trimmed = line.trim();
+                            if !trimmed.is_empty() {
+                                logs.lock().await.push(trimmed.to_string());
+                            }
+                            line.clear();
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "test-daemon").await.unwrap();
+
+        // Test all log level methods
+        client.emergency("Emergency message").await.unwrap();
+        client.alert("Alert message").await.unwrap();
+        client.critical("Critical message").await.unwrap();
+        client.error("Error message").await.unwrap();
+        client.warning("Warning message").await.unwrap();
+        client.notice("Notice message").await.unwrap();
+        client.info("Info message").await.unwrap();
+        client.debug("Debug message").await.unwrap();
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let logs = received_logs.lock().await;
+        assert!(logs.len() >= 8);
+    }
+
+    #[tokio::test]
+    async fn test_log_with_fields() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test_fields.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        let received_logs = Arc::new(Mutex::new(Vec::new()));
+        let logs_clone = received_logs.clone();
+
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    let logs = logs_clone.clone();
+                    tokio::spawn(async move {
+                        let mut buf = vec![0; 4096];
+                        while let Ok(n) = stream.read(&mut buf).await {
+                            if n == 0 { break; }
+                            if let Ok(s) = std::str::from_utf8(&buf[..n]) {
+                                for line in s.lines() {
+                                    if !line.is_empty() {
+                                        logs.lock().await.push(line.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "test-daemon").await.unwrap();
+
+        let mut fields = HashMap::new();
+        fields.insert("user_id".to_string(), "12345".to_string());
+        fields.insert("request_id".to_string(), "req-67890".to_string());
+
+        client.info_with_fields("User logged in", fields.clone()).await.unwrap();
+        client.error_with_fields("Database error", fields.clone()).await.unwrap();
+        client.warning_with_fields("High memory usage", fields).await.unwrap();
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let logs = received_logs.lock().await;
+        assert!(logs.len() >= 3);
+        
+        for log in logs.iter() {
+            assert!(log.contains("user_id"));
+            assert!(log.contains("12345"));
+            assert!(log.contains("request_id"));
+            assert!(log.contains("req-67890"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_close() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test_close.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut buf = vec![0; 1024];
+                        while let Ok(n) = stream.read(&mut buf).await {
+                            if n == 0 { break; }
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "test-daemon").await.unwrap();
+        
+        client.info("Test message before close").await.unwrap();
+        assert!(client.close().await.is_ok());
+        
+        // After close, the connection should be None
+        let conn_guard = client.connection.lock().await;
+        assert!(conn_guard.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_log_entry_contains_metadata() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test_metadata.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        let received_logs = Arc::new(Mutex::new(Vec::new()));
+        let logs_clone = received_logs.clone();
+
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    let logs = logs_clone.clone();
+                    tokio::spawn(async move {
+                        let mut buf = vec![0; 4096];
+                        while let Ok(n) = stream.read(&mut buf).await {
+                            if n == 0 { break; }
+                            if let Ok(s) = std::str::from_utf8(&buf[..n]) {
+                                for line in s.lines() {
+                                    if !line.is_empty() {
+                                        logs.lock().await.push(line.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "metadata-test-daemon").await.unwrap();
+        client.info("Test metadata").await.unwrap();
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let logs = received_logs.lock().await;
+        assert!(!logs.is_empty());
+        
+        let log_json = &logs[0];
+        let parsed: serde_json::Value = serde_json::from_str(log_json).unwrap();
+        
+        assert_eq!(parsed["daemon"], "metadata-test-daemon");
+        assert_eq!(parsed["level"], "Info");
+        assert_eq!(parsed["message"], "Test metadata");
+        assert!(parsed["pid"].is_number());
+        assert!(parsed["hostname"].is_string());
+        assert!(!parsed["hostname"].as_str().unwrap().is_empty());
+        assert!(parsed["timestamp"].is_string());
+        assert!(parsed["id"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_reconnection_after_disconnect() {
+        let temp_dir = tempdir().unwrap();
+        let socket_path = temp_dir.path().join("test_reconnect.sock");
+        let socket_str = socket_path.to_string_lossy().to_string();
+
+        let listener = create_test_server(&socket_str).await;
+        
+        let _server_handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut buf = vec![0; 1024];
+                        while let Ok(n) = stream.read(&mut buf).await {
+                            if n == 0 { break; }
+                        }
+                    });
+                }
+            }
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let client = LogClient::connect(&socket_str, "test-daemon").await.unwrap();
+        
+        // Send first message
+        client.info("First message").await.unwrap();
+        
+        // Force disconnect
+        client.close().await.unwrap();
+        
+        // Try to send another message - should reconnect
+        client.info("Message after reconnect").await.unwrap();
     }
 }

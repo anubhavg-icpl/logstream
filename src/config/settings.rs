@@ -198,6 +198,9 @@ impl ClientConfig {
         if self.socket_path.is_empty() {
             return Err(LogStreamError::Config("Socket path cannot be empty".to_string()));
         }
+        if self.daemon_name.is_empty() {
+            return Err(LogStreamError::Config("Daemon name cannot be empty".to_string()));
+        }
         Ok(())
     }
 }

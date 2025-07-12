@@ -4,6 +4,8 @@ use logstream::client::LogClient;
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 use rand::Rng;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,11 +49,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn run_daemon(socket_path: String, daemon_name: &str, interval_ms: u64) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_daemon(socket_path: String, daemon_name: &'static str, interval_ms: u64) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Starting daemon: {}", daemon_name);
 
     let client = LogClient::connect(&socket_path, daemon_name).await?;
-    let mut rng = rand::thread_rng();
+    let mut rng = StdRng::from_entropy();
 
     // Send startup message
     let mut startup_fields = HashMap::new();
