@@ -1,8 +1,7 @@
 //! LogStream Server Example
 
-use logstream::config::{ServerConfig, ServerSettings, StorageSettings, RotationSettings};
+use logstream::config::ServerConfig;
 use logstream::server::LogServer;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[tokio::main]

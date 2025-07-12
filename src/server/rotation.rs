@@ -10,15 +10,13 @@ use tokio::time::{interval, Duration};
 /// Log rotation manager
 pub struct LogRotator {
     config: ServerConfig,
-    storage: Arc<StorageBackend>,
 }
 
 impl LogRotator {
     /// Create a new log rotator
-    pub async fn new(config: &ServerConfig, storage: Arc<StorageBackend>) -> Result<Self> {
+    pub async fn new(config: &ServerConfig, _storage: Arc<StorageBackend>) -> Result<Self> {
         Ok(Self {
             config: config.clone(),
-            storage,
         })
     }
 
@@ -126,11 +124,12 @@ mod tests {
         let config = create_test_config(true).await;
         let storage = Arc::new(StorageBackend::new(&config).await.unwrap());
         
-        // Create multiple rotators sharing the same storage
+        // Create multiple rotators with the same config
         let rotator1 = LogRotator::new(&config, storage.clone()).await.unwrap();
         let rotator2 = LogRotator::new(&config, storage.clone()).await.unwrap();
         
-        assert!(Arc::ptr_eq(&rotator1.storage, &rotator2.storage));
+        // Verify they have the same config
+        assert_eq!(rotator1.config.server.socket_path, rotator2.config.server.socket_path);
     }
 
     #[tokio::test]

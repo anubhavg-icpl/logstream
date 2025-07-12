@@ -39,7 +39,7 @@
 //!     let mut fields = HashMap::new();
 //!     fields.insert("component".to_string(), "auth".to_string());
 //!     
-//!     client.info("Authentication successful", fields).await?;
+//!     client.info_with_fields("Authentication successful", fields).await?;
 //!     Ok(())
 //! }
 //! ```

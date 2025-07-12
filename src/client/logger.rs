@@ -89,11 +89,38 @@ impl LogClient {
         
         let mut conn_guard = self.connection.lock().await;
         if let Some(ref mut conn) = *conn_guard {
-            conn.write_all(message.as_bytes()).await?;
-            conn.flush().await?;
+            match conn.write_all(message.as_bytes()).await {
+                Ok(_) => match conn.flush().await {
+                    Ok(_) => Ok(()),
+                    Err(_) => {
+                        // Connection broken, reset and retry
+                        *conn_guard = None;
+                        drop(conn_guard);
+                        self.ensure_connected().await?;
+                        let mut conn_guard = self.connection.lock().await;
+                        if let Some(ref mut conn) = *conn_guard {
+                            conn.write_all(message.as_bytes()).await?;
+                            conn.flush().await?;
+                        }
+                        Ok(())
+                    }
+                },
+                Err(_) => {
+                    // Connection broken, reset and retry
+                    *conn_guard = None;
+                    drop(conn_guard);
+                    self.ensure_connected().await?;
+                    let mut conn_guard = self.connection.lock().await;
+                    if let Some(ref mut conn) = *conn_guard {
+                        conn.write_all(message.as_bytes()).await?;
+                        conn.flush().await?;
+                    }
+                    Ok(())
+                }
+            }
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// Log an emergency message
@@ -261,7 +288,7 @@ mod tests {
 
         let _server_handle = tokio::spawn(async move {
             loop {
-                if let Ok((mut stream, _)) = listener.accept().await {
+                if let Ok((stream, _)) = listener.accept().await {
                     let logs = logs_clone.clone();
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stream);

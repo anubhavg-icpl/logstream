@@ -79,7 +79,6 @@ impl StorageBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::settings::FileBackendSettings;
     use crate::types::LogLevel;
     use tempfile::tempdir;
     use tokio::fs;

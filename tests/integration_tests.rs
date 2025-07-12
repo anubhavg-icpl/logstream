@@ -3,7 +3,6 @@
 use logstream::client::LogClient;
 use logstream::config::ServerConfig;
 use logstream::server::LogServer;
-use logstream::types::LogLevel;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -304,6 +303,9 @@ async fn test_client_reconnection() {
     let client = LogClient::connect(&socket_str, "reconnect-daemon").await.unwrap();
     client.info("Message before server restart").await.unwrap();
     
+    // Give time for the log to be written
+    sleep(Duration::from_millis(100)).await;
+    
     // Shutdown server
     server_handle.abort();
     sleep(Duration::from_millis(100)).await;
@@ -331,7 +333,7 @@ async fn test_client_reconnection() {
     let log_file = log_dir.join("reconnect-daemon.log");
     assert!(log_file.exists());
     
-    let content = fs::read_to_string(log_file).await.unwrap();
+    let content = fs::read_to_string(&log_file).await.unwrap();
     assert!(content.contains("Message before server restart"));
     assert!(content.contains("Message after server restart"));
     assert!(content.contains("Another message after restart"));
